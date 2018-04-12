@@ -65,7 +65,7 @@ namespace minigc {
 		// use SFINAE enabling of a pointer marking method to mark outgoing pointers from the array.
 		template<class T>
 		auto minigc_mark_impl(gc_context *gc,T*d)->decltype( (gc->mark(m_data[0])),void()) {
-			printf("Marking %d members\n",m_count);
+			//printf("Marking %d members\n",m_count);
 			for (int i=0;i<m_count;i++) {
 				gc->mark(d[i]);
 			}

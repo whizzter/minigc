@@ -17,9 +17,14 @@ int main(int argc,char **argv) {
 	try {
 		gc_context gc;
 
-		root_ptr<test_obj> p=gc.make<test_obj>(200);
 
 		root_ptr<gc_array<int>> pa1=gc.make<gc_array<int>>(80);
+		root_ptr<gc_array<test_obj*>> pa2=gc.make<gc_array<test_obj*>>(2,nullptr);
+		for (int i=0;i<2;i++)
+		{
+			root_ptr<test_obj> p=gc.make<test_obj>(200);
+			(*pa2)[i]=p.get();
+		}
 
 		while(true) {
 			root_ptr<test_obj> p2=gc.make<test_obj>(200);
