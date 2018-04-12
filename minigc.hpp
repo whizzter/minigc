@@ -154,6 +154,9 @@ namespace minigc {
 		inline T& operator*() {
 			return *ptr;
 		}
+		inline operator T* () {
+			return ptr;
+		}
 		inline T* get() {
 			return ptr;
 		}
@@ -192,17 +195,17 @@ namespace minigc {
 			for (int i=0;i<2;i++) {
 				gc_object ** newSet=nullptr;
 				
-				// we have a small goto loop here to try running a sweep when enlargement is done if insufficient memory is available.
+				// we have a small goto loop here to try running a collection when enlargement is done if insufficient memory is available.
 				bool swept=false;
 				again:
 				// try making a new set
 				newSet=new (std::nothrow) gc_object*[newSize];
 				if (!newSet) {
-					// not enough memory, if we haven't already then try sweeping.
+					// not enough memory, if we haven't already then try collecting.
 					if (swept) {
 						throw std::bad_alloc();
 					}
-					sweep();
+					collect();
 					swept=true;
 					goto again;
 				}
@@ -241,7 +244,7 @@ namespace minigc {
 				if (!newRoots) {
 					if (swept)
 						throw std::bad_alloc();
-					sweep();
+					collect();
 					swept=true;
 					goto again;
 				}
@@ -283,7 +286,7 @@ namespace minigc {
 			// before allocating we see if we've approaching the time to mark/sweep
 			// TODO: add sizeof specializations
 			if (allocBytes+sizeof(T)>gcMarkBytes) {
-				sweep();
+				collect();
 			}
 			// also ensure that we have space in live-sets data
 			if (setNexts[curSet]+1>=setSizes) {
@@ -302,7 +305,7 @@ namespace minigc {
 					// even after a sweep we were unable to allocate, bail!
 					throw std::bad_alloc();
 				}
-				sweep();
+				collect();
 				swept=true;
 				goto again;
 			}
@@ -317,13 +320,13 @@ namespace minigc {
 			return out;
 		}
 
-		// the sweep method is used to collect garbage, it can be called specifically but is also called periodically or in out of memory situations.
-		void sweep() {
+		// the collect method is used to collect garbage, it can be called specifically but is also called periodically or in out of memory situations.
+		void collect() {
 			if (collecting)
 				return; // not re-entrant
 			collecting=true;
 #ifdef MINIGCHPP_VERBOSE
-			auto logm="[Running sweep function]\n";
+			auto logm="[Running collect function]\n";
 			fwrite(logm,strlen(logm),1,stderr);
 			fprintf(stderr,"Live objects pre-sweep:%d taking %d bytes\n",setNexts[curSet],allocBytes);
 #endif
@@ -406,7 +409,7 @@ namespace minigc {
 				}
 			}
 			// run a sweep (this should destroy everything since all roots are gone)
-			sweep();
+			collect();
 			for (int i=0;i<2;i++) {
 				if (sets[i])
 					delete[] sets[i];

@@ -22,8 +22,7 @@ int main(int argc,char **argv) {
 		root_ptr<gc_array<test_obj*>> pa2=gc.make<gc_array<test_obj*>>(2,nullptr);
 		for (int i=0;i<2;i++)
 		{
-			root_ptr<test_obj> p=gc.make<test_obj>(200);
-			(*pa2)[i]=p.get();
+			(*pa2)[i]=gc.make<test_obj>(200);
 		}
 
 		while(true) {
