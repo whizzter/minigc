@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <new>
 #include <cstddef>
+#include <tuple>
 
 //#define MINIGCHPP_VERBOSE
 
@@ -9,9 +10,7 @@
 #include <stdio.h> 
 #endif
 
-namespace minigc {
-	class gc_context;
-
+namespace minigc {	
 	// This collector is designed to be a per-thread C++ friendly non-moving mark-sweep collector and
 	// should mix well with generic modern C++ code.
 
@@ -32,6 +31,30 @@ namespace minigc {
 	// The other use is to register roots:
 	// the sparse part is the root_ptr's own index reference and the dense map is inside the GC
 
+	// API summary:
+	
+	// the context class is responsible for allocation and collection and managing root_ptr's
+	class gc_context;
+	
+	// root_ptr's can be used roughly like other smart ptr's
+	template<class T>
+	class root_ptr;
+
+	// the base class of all collectible objects, you'll likely be inheriting this.
+	// Unless your class is special you should use one of the following 2 macros inside the class
+	class gc_object;
+
+	// the MINIGC_NOMARK() macro is used to indicate that there is no member pointers in the type.
+	#define MINIGC_NOMARK() virtual void minigc_mark(minigc::gc_context *gc) { }
+
+	// the MINIGC_AUTOMARK(...) macro greatly simplifies managing pointers, just add a list of
+	// the pointer names inside the class and the collector will mark all references.
+	#define MINIGC_AUTOMARK(...) virtual void minigc_mark(minigc::gc_context *gc) { minigc_automark_helper(gc,__VA_ARGS__); }
+
+	// the gc_array template is an gc_object that can hold a multiple of other objects.
+	template<class T>
+	class gc_array;
+
 
 	// gc_object is the parent of all collectable objects, regular classes can just inherit them
 	// and create objects via gc_context.make<T>(...)
@@ -48,7 +71,10 @@ namespace minigc {
 		virtual size_t minigc_gc_sizeof()=0;
 
 		// the default mark method won't mark any members
-		virtual void minigc_mark(gc_context *gc){}
+		virtual void minigc_mark(gc_context *gc)=0;
+		
+		template<class... ARGS>
+		void minigc_automark_helper(gc_context *gc,ARGS&... args);
 	public:
 		gc_object()=default;
 		gc_object(const gc_object&)=delete;
@@ -118,6 +144,9 @@ namespace minigc {
 		inline int count() { return m_count; }
 		inline T& operator[](size_t idx) {
 			return m_data[idx];
+		}
+		inline T* data() {
+			return m_data;
 		}
 	};
 
@@ -384,6 +413,8 @@ namespace minigc {
 
 		// this method is called by objects when they are being marked to indicate that there is sub-objects.
 		virtual void mark(gc_object * ptr) {
+			if (!ptr)
+				return;
 			if (!collecting)
 				return;
 			if (ptr->gc_info&1 == curSet)
@@ -436,6 +467,11 @@ namespace minigc {
 		gc->denseRoots[idx]=nullptr;
 	}
 
+	void expansion_dummy(...) {}
 
+	template<class... ARGS>
+	inline void gc_object::minigc_automark_helper(gc_context *gc,ARGS&... args) {
+		expansion_dummy( (gc->mark(args),0)... );
+	}
 };
 
