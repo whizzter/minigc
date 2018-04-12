@@ -35,7 +35,10 @@ see `example1.cpp` for a more complete example.
 
 ## API
 `class gc_context;` manages everything, once this object dies all memory managed by it is destroyed, also used to create and collect garbage.
-`gc_context::make<T>(...)` is used to create managed object instances of type T with the arguments passed on to the types constructor. 
+
+`gc_context::make<T>(...)` is used to create managed object instances of type T with the arguments passed on to the types constructor, when the object is allocated it will be passed in a `minigc::root_ptr`
+
+`gc_context::collect()` can be used to enforce a garbage collection, the collector however is designed to be self-tuning so this call should hopefully not be needed for more than debugging.
 
 `template<class T> class root_ptr;` is way objects are kept alive, can be used mostly like other smart ptrs.
 
